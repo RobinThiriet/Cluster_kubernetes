@@ -1,0 +1,16 @@
+Cluster_kubernetes/
+├── README.md
+├── 00-prerequisites/
+│   └── README.md
+├── 01-ingress-nginx/
+│   └── ingress-nginx.yaml
+├── 02-cert-manager/
+│   ├── cert-manager.yaml
+│   └── clusterissuer-letsencrypt.yaml
+├── 03-apps/
+│   └── uptime-kuma/
+│       ├── namespace.yaml
+│       ├── pvc.yaml
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       └── ingress.yaml
