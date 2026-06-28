@@ -1,0 +1,21 @@
+ipam:
+  mode: kubernetes
+
+kubeProxyReplacement: false
+
+routingMode: tunnel
+tunnelProtocol: vxlan
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+prometheus:
+  enabled: true
+
+operator:
+  prometheus:
+    enabled: true

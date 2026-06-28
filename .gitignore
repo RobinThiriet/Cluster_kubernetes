@@ -1,0 +1,20 @@
+# Secrets / credentials
+*.key
+*.pem
+*.crt
+*.kubeconfig
+kubeconfig
+config
+.env
+*.env
+
+# Temp
+*.tmp
+*.bak
+.DS_Store
+
+# Helm cache / archives
+*.tgz
+
+# Logs
+*.log
