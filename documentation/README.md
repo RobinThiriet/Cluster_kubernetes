@@ -13,6 +13,8 @@ Ce dossier contient la documentation technique du cluster.
 | 04-envoy-gateway.md | Exposition HTTP avec Gateway API |
 | 05-git-workflow.md | Methode de travail Git |
 | 06-runbook.md | Commandes utiles de verification et diagnostic |
+| 07-kubeview.md | Application de visualisation du cluster |
+
 
 ## Regle principale
 

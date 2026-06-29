@@ -1,0 +1,19 @@
+replicaCount: 1
+
+singleNamespace: false
+
+service:
+  type: ClusterIP
+  externalPort: 8000
+  internalPort: 8000
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
