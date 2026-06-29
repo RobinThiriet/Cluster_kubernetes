@@ -1,0 +1,898 @@
+---
+# Source: teleport-cluster/templates/auth/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teleport-cluster
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+automountServiceAccountToken: false
+---
+# Source: teleport-cluster/templates/proxy/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teleport-cluster-proxy
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+automountServiceAccountToken: false
+---
+# Source: teleport-cluster/templates/auth/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teleport-cluster-auth
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+data:
+  apply-on-startup.yaml: |2
+    ---
+    kind: token
+    version: v2
+    metadata:
+      name: teleport-cluster-proxy
+      expires: "2050-01-01T00:00:00Z"
+    spec:
+      roles: [Proxy]
+      join_method: kubernetes
+      kubernetes:
+        allow:
+          - service_account: "teleport:teleport-cluster-proxy"
+  teleport.yaml: |2
+    auth_service:
+      authentication:
+        local_auth: true
+        second_factors:
+        - otp
+        - webauthn
+        type: local
+        webauthn:
+          rp_id: teleport.local
+      cluster_name: teleport.local
+      enabled: true
+      proxy_listener_mode: multiplex
+    kubernetes_service:
+      enabled: true
+      kube_cluster_name: teleport.local
+      listen_addr: 0.0.0.0:3026
+      public_addr: teleport-cluster-auth.teleport.svc.cluster.local:3026
+    proxy_service:
+      enabled: false
+    ssh_service:
+      enabled: false
+    teleport:
+      auth_server: 127.0.0.1:3025
+      log:
+        format:
+          extra_fields:
+          - timestamp
+          - level
+          - component
+          - caller
+          output: text
+        output: stderr
+        severity: INFO
+    version: v3
+---
+# Source: teleport-cluster/templates/proxy/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teleport-cluster-proxy
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+data:
+  teleport.yaml: |2
+    auth_service:
+      enabled: false
+    proxy_service:
+      enabled: true
+      public_addr: teleport.local:443
+    ssh_service:
+      enabled: false
+    teleport:
+      auth_server: teleport-cluster-auth.teleport.svc.cluster.local:3025
+      join_params:
+        method: kubernetes
+        token_name: teleport-cluster-proxy
+      log:
+        format:
+          extra_fields:
+          - timestamp
+          - level
+          - component
+          - caller
+          output: text
+        output: stderr
+        severity: INFO
+    version: v3
+---
+# Source: teleport-cluster/templates/auth/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teleport-cluster
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: teleport-cluster/templates/auth/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: teleport-cluster
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - users
+  - groups
+  - serviceaccounts
+  verbs:
+  - impersonate
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+- apiGroups:
+  - "authorization.k8s.io"
+  resources:
+  - selfsubjectaccessreviews
+  verbs:
+  - create
+---
+# Source: teleport-cluster/templates/auth/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: teleport-teleport-cluster
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: teleport-cluster
+subjects:
+- kind: ServiceAccount
+  name: teleport-cluster
+  namespace: teleport
+---
+# Source: teleport-cluster/templates/auth/clusterrolebinding.yaml
+# This ClusterRoleBinding allows the auth service-account to validate Kubernetes tokens
+# This is required for proxies to join using their Kubernetes tokens
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: teleport-teleport-cluster-auth
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: teleport-cluster
+  namespace: teleport
+---
+# Source: teleport-cluster/templates/auth/service-previous-version.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teleport-cluster-auth-v17
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  # This is a headless service. Resolving it will return the list of all auth pods running the previous major version
+  # Proxies should not connect to auth pods from the previous major version
+  # Proxy rollout should be held until this headLessService does not match pods anymore.
+  clusterIP: "None"
+  # Publishing not ready addresses ensures that unhealthy or terminating pods are still accounted for
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    teleport.dev/majorVersion: "17"
+---
+# Source: teleport-cluster/templates/auth/service-previous-version.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teleport-cluster-auth-v18
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  # This is a headless service. Resolving it will return the list of all auth pods running the current major version
+  clusterIP: "None"
+  # Publishing not ready addresses ensures that unhealthy or terminating pods are still accounted for
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    teleport.dev/majorVersion: "18"
+---
+# Source: teleport-cluster/templates/auth/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teleport-cluster-auth
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  ports:
+  - name: auth
+    port: 3025
+    targetPort: 3025
+    protocol: TCP
+  - name: kube
+    port: 3026
+    targetPort: 3026
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+---
+# Source: teleport-cluster/templates/proxy/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teleport-cluster
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.205
+  ports:
+  - name: tls
+    port: 443
+    targetPort: 3080
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+---
+# Source: teleport-cluster/templates/auth/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teleport-cluster-auth
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+    app: teleport-cluster
+spec:
+  replicas: 1
+  strategy:
+    # using a single replica can be because of a non-replicable storage or when applying upgrade migrations.
+    # In those cases, we don't want a rolling update.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: 'teleport-cluster'
+      app.kubernetes.io/instance: 'teleport-cluster'
+      app.kubernetes.io/component: 'auth'
+  template:
+    metadata:
+      annotations:
+        # ConfigMap checksum, to recreate the pod on config changes.
+        checksum/config: 73f9ca662df868852ab51df6744b176746f2b262a79f4f53ac2bf824e89510a0
+      labels:
+        app.kubernetes.io/name: 'teleport-cluster'
+        app.kubernetes.io/instance: 'teleport-cluster'
+        app.kubernetes.io/component: 'auth'
+        helm.sh/chart: 'teleport-cluster-18.9.1'
+        app.kubernetes.io/managed-by: 'Helm'
+        app.kubernetes.io/version: '18.9.1'
+        teleport.dev/majorVersion: '18'
+        app: teleport-cluster
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: 'teleport-cluster'
+              app.kubernetes.io/instance: 'teleport-cluster'
+              app.kubernetes.io/component: 'auth'
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: 'teleport-cluster'
+              app.kubernetes.io/instance: 'teleport-cluster'
+              app.kubernetes.io/component: 'auth'
+      affinity:
+        podAntiAffinity:
+      containers:
+      - name: "teleport"
+        image: 'public.ecr.aws/gravitational/teleport-distroless:18.9.1'
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--diag-addr=0.0.0.0:3000"
+        - "--apply-on-startup=/etc/teleport/apply-on-startup.yaml"
+        ports:
+        - name: diag
+          containerPort: 3000
+          protocol: TCP
+        - name: auth
+          containerPort: 3025
+          protocol: TCP
+        - name: kube
+          containerPort: 3026
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to start
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 6 # consider agent unhealthy after 30s (6 * 5s)
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: diag
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 12
+          successThreshold: 1
+          timeoutSeconds: 5
+        lifecycle:
+          # waiting during preStop ensures no new request will hit the Terminating pod
+          # on clusters using kube-proxy (kube-proxy syncs the node iptables rules every 30s)
+          preStop:
+            exec:
+              command:
+                - teleport
+                - wait
+                - duration
+                - 30s
+        volumeMounts:
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: auth-serviceaccount-token
+          readOnly: true
+      automountServiceAccountToken: false
+      volumes:
+      # This projected token volume mimics the `automountServiceAccountToken`
+      # behaviour but defaults to a 1h TTL instead of 1y.
+      - name: auth-serviceaccount-token
+        projected:
+          sources:
+            - serviceAccountToken:
+                path: token
+            - configMap:
+                items:
+                - key: ca.crt
+                  path: ca.crt
+                name: kube-root-ca.crt
+            - downwardAPI:
+                items:
+                  - path: "namespace"
+                    fieldRef:
+                      fieldPath: metadata.namespace
+      - name: "config"
+        configMap:
+          name: teleport-cluster-auth
+      - name: "data"
+        persistentVolumeClaim:
+          claimName: teleport-cluster
+      serviceAccountName: teleport-cluster
+      terminationGracePeriodSeconds: 60
+---
+# Source: teleport-cluster/templates/proxy/deployment.yaml
+# Deployment is not replicable
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teleport-cluster-proxy
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: 'teleport-cluster'
+      app.kubernetes.io/instance: 'teleport-cluster'
+      app.kubernetes.io/component: 'proxy'
+  template:
+    metadata:
+      annotations:
+        # ConfigMap checksum, to recreate the pod on config changes.
+        checksum/config: 5075596cfeab40acc590885c6a6681753abe9f3a61da3efecb499f9652f0d798
+      labels:
+        app.kubernetes.io/name: 'teleport-cluster'
+        app.kubernetes.io/instance: 'teleport-cluster'
+        app.kubernetes.io/component: 'proxy'
+        helm.sh/chart: 'teleport-cluster-18.9.1'
+        app.kubernetes.io/managed-by: 'Helm'
+        app.kubernetes.io/version: '18.9.1'
+        teleport.dev/majorVersion: '18'
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: 'teleport-cluster'
+              app.kubernetes.io/instance: 'teleport-cluster'
+              app.kubernetes.io/component: 'proxy'
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: 'teleport-cluster'
+              app.kubernetes.io/instance: 'teleport-cluster'
+              app.kubernetes.io/component: 'proxy'
+      affinity:
+        podAntiAffinity:
+      initContainers:
+        # wait-auth-update is responsible for holding off the proxy rollout until all auths are running the
+        # next major version in case of major upgrade.
+        - name: wait-auth-update
+          image: 'public.ecr.aws/gravitational/teleport-distroless:18.9.1'
+          command:
+            - teleport
+            - wait
+            - no-resolve
+            - 'teleport-cluster-auth-v17.teleport.svc.cluster.local'
+# propagating through the limits from the main resources section would double the requested amounts
+# and may prevent scheduling on the cluster. as such, we hardcode small limits for this tiny container.
+      containers:
+      - name: "teleport"
+        image: 'public.ecr.aws/gravitational/teleport-distroless:18.9.1'
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--diag-addr=0.0.0.0:3000"
+        ports:
+        - name: tls
+          containerPort: 3080
+          protocol: TCP
+        - name: diag
+          containerPort: 3000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: diag
+          initialDelaySeconds: 5 # wait 5s for agent to start
+          periodSeconds: 5 # poll health every 5s
+          failureThreshold: 6 # consider agent unhealthy after 30s (6 * 5s)
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: diag
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 12
+          successThreshold: 1
+          timeoutSeconds: 5
+        lifecycle:
+          # waiting during preStop ensures no new request will hit the Terminating pod
+          # on clusters using kube-proxy (kube-proxy syncs the node iptables rules every 30s)
+          preStop:
+            exec:
+              command:
+                - teleport
+                - wait
+                - duration
+                - 30s
+        volumeMounts:
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: proxy-serviceaccount-token
+          readOnly: true
+      automountServiceAccountToken: false
+      volumes:
+      # This projected token volume mimics the `automountServiceAccountToken`
+      # behaviour but defaults to a 1h TTL instead of 1y.
+      - name: proxy-serviceaccount-token
+        projected:
+          sources:
+            - serviceAccountToken:
+                path: token
+            - configMap:
+                items:
+                - key: ca.crt
+                  path: ca.crt
+                name: kube-root-ca.crt
+            - downwardAPI:
+                items:
+                  - path: "namespace"
+                    fieldRef:
+                      fieldPath: metadata.namespace
+      - name: "config"
+        configMap:
+          name: teleport-cluster-proxy
+      - name: "data"
+        emptyDir: {}
+      serviceAccountName: teleport-cluster-proxy
+      terminationGracePeriodSeconds: 60
+---
+# Source: teleport-cluster/templates/auth/predeploy_serviceaccount.yaml
+# this is a carbon copy of the regular serviceAccount object which is only used to run pre-deploy jobs
+# upon first install of the chart. it will be deleted by Helm after the pre-deploy hooks run, then the
+# regular serviceAccount is created with the same name and exists for the lifetime of the release.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teleport-cluster-hook
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+automountServiceAccountToken: false
+---
+# Source: teleport-cluster/templates/proxy/predeploy_serviceaccount.yaml
+# this is a carbon copy of the regular serviceAccount object which is only used to run pre-deploy jobs
+# upon first install of the chart. it will be deleted by Helm after the pre-deploy hooks run, then the
+# regular serviceAccount is created with the same name and exists for the lifetime of the release.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teleport-cluster-proxy-hook
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+automountServiceAccountToken: false
+---
+# Source: teleport-cluster/templates/auth/predeploy_config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teleport-cluster-auth-test
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'auth'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "4"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  apply-on-startup.yaml: |2
+    kind: token
+    version: v2
+    metadata:
+      name: teleport-cluster-proxy
+      expires: "3000-01-01T00:00:00Z"
+    spec:
+      roles: [Proxy]
+      join_method: kubernetes
+      kubernetes:
+        allow:
+          - service_account: "teleport:teleport-cluster-proxy"
+  teleport.yaml: |2
+    auth_service:
+      authentication:
+        local_auth: true
+        second_factors:
+        - otp
+        - webauthn
+        type: local
+        webauthn:
+          rp_id: teleport.local
+      cluster_name: teleport.local
+      enabled: true
+      proxy_listener_mode: multiplex
+    kubernetes_service:
+      enabled: true
+      kube_cluster_name: teleport.local
+      listen_addr: 0.0.0.0:3026
+      public_addr: teleport-cluster-auth.teleport.svc.cluster.local:3026
+    proxy_service:
+      enabled: false
+    ssh_service:
+      enabled: false
+    teleport:
+      auth_server: 127.0.0.1:3025
+      log:
+        format:
+          extra_fields:
+          - timestamp
+          - level
+          - component
+          - caller
+          output: text
+        output: stderr
+        severity: INFO
+    version: v3
+---
+# Source: teleport-cluster/templates/proxy/predeploy_config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teleport-cluster-proxy-test
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "4"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  teleport.yaml: |2
+    auth_service:
+      enabled: false
+    proxy_service:
+      enabled: true
+      public_addr: teleport.local:443
+    ssh_service:
+      enabled: false
+    teleport:
+      auth_server: teleport-cluster-auth.teleport.svc.cluster.local:3025
+      join_params:
+        method: kubernetes
+        token_name: teleport-cluster-proxy
+      log:
+        format:
+          extra_fields:
+          - timestamp
+          - level
+          - component
+          - caller
+          output: text
+        output: stderr
+        severity: INFO
+    version: v3
+---
+# Source: teleport-cluster/templates/auth/predeploy_job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: teleport-cluster-auth-test
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: 'teleport-cluster'
+        app.kubernetes.io/instance: 'teleport-cluster'
+        app.kubernetes.io/component: 'auth'
+        helm.sh/chart: 'teleport-cluster-18.9.1'
+        app.kubernetes.io/managed-by: 'Helm'
+        app.kubernetes.io/version: '18.9.1'
+        teleport.dev/majorVersion: '18'
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: "teleport-config-check"
+        image: 'public.ecr.aws/gravitational/teleport-distroless:18.9.1'
+        imagePullPolicy: IfNotPresent
+        command:
+          - "teleport"
+          - "configure"
+        args:
+          - "--test"
+          - "/etc/teleport/teleport.yaml"
+        volumeMounts:
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+      volumes:
+      - name: "config"
+        configMap:
+          name: teleport-cluster-auth-test
+      - name: "data"
+        emptyDir: {}
+      serviceAccountName: teleport-cluster-hook
+---
+# Source: teleport-cluster/templates/proxy/predeploy_job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: teleport-cluster-proxy-test
+  namespace: teleport
+  labels:
+    app.kubernetes.io/name: 'teleport-cluster'
+    app.kubernetes.io/instance: 'teleport-cluster'
+    app.kubernetes.io/component: 'proxy'
+    helm.sh/chart: 'teleport-cluster-18.9.1'
+    app.kubernetes.io/managed-by: 'Helm'
+    app.kubernetes.io/version: '18.9.1'
+    teleport.dev/majorVersion: '18'
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: 'teleport-cluster'
+        app.kubernetes.io/instance: 'teleport-cluster'
+        app.kubernetes.io/component: 'proxy'
+        helm.sh/chart: 'teleport-cluster-18.9.1'
+        app.kubernetes.io/managed-by: 'Helm'
+        app.kubernetes.io/version: '18.9.1'
+        teleport.dev/majorVersion: '18'
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: "teleport"
+        image: 'public.ecr.aws/gravitational/teleport-distroless:18.9.1'
+        imagePullPolicy: IfNotPresent
+        command:
+          - "teleport"
+          - "configure"
+        args:
+          - "--test"
+          - "/etc/teleport/teleport.yaml"
+        volumeMounts:
+        - mountPath: /etc/teleport
+          name: "config"
+          readOnly: true
+        - mountPath: /var/lib/teleport
+          name: "data"
+      volumes:
+      - name: "config"
+        configMap:
+          name: teleport-cluster-proxy-test
+      - name: "data"
+        emptyDir: {}
+      serviceAccountName: teleport-cluster-proxy-hook

@@ -1,0 +1,17 @@
+clusterName: teleport.local
+
+proxyListenerMode: multiplex
+
+acme: false
+
+enterprise: false
+
+proxy:
+  service:
+    type: LoadBalancer
+    spec:
+      loadBalancerIP: 192.168.1.205
+
+auth:
+  storage:
+    type: kubernetes

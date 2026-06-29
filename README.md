@@ -71,3 +71,24 @@ La branche main contient le socle stable.
 Pour tester des applications :
 
     git checkout -b applications/poc
+
+## Teleport
+
+Documentation Teleport :
+
+- [Teleport](documentation/08-teleport.md)
+
+Teleport est actuellement valide pour :
+
+- acces Web ;
+- creation d'un utilisateur local ;
+- enrolement d'un agent Linux ;
+- connexion SSH via Teleport.
+
+La suite prevue :
+
+- service systemd pour les agents ;
+- deploiement Ansible ;
+- test Windows Server ;
+- SSO Keycloak ;
+- Vault pour les secrets.
