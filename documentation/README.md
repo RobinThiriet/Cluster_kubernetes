@@ -28,3 +28,5 @@ On modifie plutot :
 - config/*.yaml
 
 Puis on regenere le manifeste.
+
+| [08 - Teleport](08-teleport.md) | Acces Zero Trust, SSH Linux et strategie SSO |
